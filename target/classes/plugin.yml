@@ -1,0 +1,8 @@
+name: simplebounty
+main: com.simplebounty.Plugin
+version: 1
+api-version: 1.21
+commands:
+ bounty:
+  description: Main command for the simplebounty plugin
+  usage: /bounty <subcommands> 
