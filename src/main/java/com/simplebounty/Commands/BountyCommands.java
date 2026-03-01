@@ -9,6 +9,8 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
 import org.jetbrains.annotations.NotNull;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
+import com.simplebounty.Database.BountyEntry;
 import com.simplebounty.Database.TargetDataBase;
 import org.jetbrains.annotations.Nullable;
 
@@ -69,19 +71,24 @@ public class BountyCommands implements CommandExecutor, TabCompleter {
                     return true;
                 }
 
-                // Item in der Hand des Spielers als Preis verwenden
-                Material prize = player.getInventory().getItemInMainHand().getType();
+                // Item in der Hand auslesen
+                ItemStack itemInHand = player.getInventory().getItemInMainHand();
+                Material prize = itemInHand.getType();
+                int amount = itemInHand.getAmount();
 
-                // Überprüft ob der Spieler ein Item in der Hand hält
+                // AIR-Check VOR dem Entfernen ✓
                 if (prize == Material.AIR) {
                     player.sendMessage("§fDu musst den Kopfgeld-Preis in der Hand halten!");
                     return true;
                 }
 
-                // Kopfgeld in der Datenbank speichern
-                dataBase.setBounty(targetName, prize);
-                player.sendMessage("§aKopfgeld auf §f" + targetPlayer.getName() + " §agesetzt! Preis: §f" + prize.name());
-                targetPlayer.sendMessage("§cEin Kopfgeld wurde auf dich gesetzt!");
+                // Item entfernen damit man es nicht verdoppeln kann
+                itemInHand.setAmount(0);
+
+                // Kopfgeld in der Datenbank speichern – material als String, + Menge
+                dataBase.setBounty(targetName, prize.name(), amount);
+                player.sendMessage("§aKopfgeld auf §f" + targetPlayer.getName() + " §agesetzt! Preis: §f" + amount + "x " + prize.name());
+                targetPlayer.sendMessage("§cEin Kopfgeld von §f" + amount + "x " + prize.name() + " §cwurde auf dich gesetzt!");
             }
 
             // Alle aktiven Kopfgelder auflisten
@@ -93,9 +100,9 @@ public class BountyCommands implements CommandExecutor, TabCompleter {
                     player.sendMessage("§fEs gibt noch keine aktiven Kopfgelder!");
                 } else {
                     player.sendMessage("§e--- Aktive Kopfgelder ---");
-                    // Jeden Eintrag als "Spieler -> Preis" ausgeben
-                    bounties.forEach((target, prize) ->
-                        player.sendMessage("§f" + target + " §7-> §e" + prize.name())
+                    // Jeden Eintrag als "Spieler -> Menge x Material" ausgeben
+                    bounties.forEach((target, entry) ->
+                        player.sendMessage("§f" + target + " §7-> §e" + entry.amount + "x " + entry.material)
                     );
                 }
             }
@@ -103,9 +110,10 @@ public class BountyCommands implements CommandExecutor, TabCompleter {
 
         return false;
     }
+
     @Override
     public @Nullable List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command,
-                                            @NotNull String label, @NotNull String[] args) {
+                                                @NotNull String label, @NotNull String[] args) {
         List<String> suggestions = new ArrayList<>();
 
         if (args.length == 1) {

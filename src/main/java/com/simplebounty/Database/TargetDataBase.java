@@ -3,6 +3,7 @@ package com.simplebounty.Database;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.IOException;
+import java.lang.reflect.Type;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
@@ -10,16 +11,15 @@ import java.util.Map;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-import org.bukkit.Material;
 import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 
 public class TargetDataBase {
 
-    // Wo die JSON-Datei liegt, Gson-Instanz, Thread-Lock und die eigentliche Map
     private final Path filePath;
     private final Gson gson;
     private final ReadWriteLock lock;
-    private Map<String, Material> targetToPrize;
+    private Map<String, BountyEntry> targetToPrize; // ← BountyEntry statt Material
 
     // ── Konstruktor ──────────────────────────────────────────────────────────────
 
@@ -29,7 +29,6 @@ public class TargetDataBase {
         this.lock = new ReentrantReadWriteLock();
         this.targetToPrize = new HashMap<>();
 
-        // Ordner anlegen falls nicht vorhanden
         try {
             Files.createDirectories(filePath.getParent());
         } catch (IOException e) {
@@ -41,13 +40,15 @@ public class TargetDataBase {
 
     // ── Laden & Speichern ────────────────────────────────────────────────────────
 
-    // Lädt die JSON-Datei in die Map – bei fehlender Datei wird eine leere erstellt
+    // Gson kann BountyEntry direkt laden da es ein einfaches POJO ist
     public void load() {
         lock.writeLock().lock();
         try {
             if (Files.exists(filePath)) {
                 try (BufferedReader reader = Files.newBufferedReader(filePath)) {
-                    targetToPrize = gson.fromJson(reader, Map.class);
+                    Type type = new TypeToken<Map<String, BountyEntry>>(){}.getType();
+                    targetToPrize = gson.fromJson(reader, type);
+                    if (targetToPrize == null) targetToPrize = new HashMap<>();
                 } catch (IOException e) {
                     throw new RuntimeException("Fehler beim Laden der Datenbank", e);
                 }
@@ -60,7 +61,7 @@ public class TargetDataBase {
         }
     }
 
-    // Intern speichern – ohne eigenen Lock, da immer schon ein WriteLock gehalten wird
+    // Gson serialisiert BountyEntry direkt als JSON-Objekt
     private void saveInternal() {
         try (BufferedWriter writer = Files.newBufferedWriter(filePath)) {
             gson.toJson(targetToPrize, writer);
@@ -69,7 +70,6 @@ public class TargetDataBase {
         }
     }
 
-    // Öffentliches Speichern – holt sich selbst den WriteLock
     public void save() {
         lock.writeLock().lock();
         try {
@@ -79,21 +79,21 @@ public class TargetDataBase {
         }
     }
 
-    //CRUD-Methoden
+    // ── CRUD-Methoden ────────────────────────────────────────────────────────────
 
-    // Kopfgeld setzen oder überschreiben
-    public void setBounty(String targetName, Material prize) {
+    // Kopfgeld setzen – Material + Menge
+    public void setBounty(String targetName, String material, int amount) {
         lock.writeLock().lock();
         try {
-            targetToPrize.put(targetName, prize);
+            targetToPrize.put(targetName, new BountyEntry(material, amount));
             saveInternal();
         } finally {
             lock.writeLock().unlock();
         }
     }
 
-    // Kopfgeld eines Spielers abfragen – null wenn keins vorhanden
-    public Material getBounty(String targetName) {
+    // Kopfgeld abrufen – null wenn keins vorhanden
+    public BountyEntry getBounty(String targetName) {
         lock.readLock().lock();
         try {
             return targetToPrize.get(targetName);
@@ -125,10 +125,10 @@ public class TargetDataBase {
     }
 
     // Gibt eine Kopie aller Kopfgelder zurück – für /bounty list
-    public Map<String, Material> getAllBounties() {
+    public Map<String, BountyEntry> getAllBounties() {
         lock.readLock().lock();
         try {
-            return new HashMap<>(targetToPrize); // Kopie damit die interne Map nicht von außen verändert werden kann
+            return new HashMap<>(targetToPrize);
         } finally {
             lock.readLock().unlock();
         }
