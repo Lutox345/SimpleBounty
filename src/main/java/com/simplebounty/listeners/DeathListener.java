@@ -1,6 +1,6 @@
 package com.simplebounty.listeners;
 
-import org.bukkit.Material;
+import java.util.Base64;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -11,12 +11,15 @@ import com.simplebounty.Database.TargetDataBase;
 
 public class DeathListener implements Listener {
 
-    // Datenbank-Instanz um Kopfgelder abzurufen
     private final TargetDataBase dataBase;
 
-    // Konstruktor – bekommt die Datenbank-Instanz von der Hauptklasse übergeben
     public DeathListener(TargetDataBase dataBase) {
         this.dataBase = dataBase;
+    }
+
+    // Base64-String → ItemStack
+    private ItemStack deserialize(String data) {
+        return ItemStack.deserializeBytes(Base64.getDecoder().decode(data));
     }
 
     @EventHandler
@@ -34,21 +37,13 @@ public class DeathListener implements Listener {
             return;
         }
 
-        // Kopfgeld abrufen – nur einmal ✓
+        // Kopfgeld abrufen und deserialisieren – Enchantments bleiben erhalten ✓
         BountyEntry entry = dataBase.getBounty(player.getName());
-        Material mat = Material.matchMaterial(entry.material);
-
-        // Sicherheitscheck falls Material ungültig
-        if (mat == null) {
-            killer.sendMessage("§cFehler: Das Kopfgeld-Item ist ungültig!");
-            dataBase.removeBounty(player.getName());
-            return;
-        }
+        ItemStack reward = deserialize(entry.itemStackJson);
 
         // Belohnung dem Killer geben
-        ItemStack reward = new ItemStack(mat, entry.amount);
         killer.getInventory().addItem(reward);
-        killer.sendMessage("§aDu hast das Kopfgeld auf §f" + player.getName() + " §aeingelöst! Belohnung: §f" + entry.amount + "x " + mat.name());
+        killer.sendMessage("§aDu hast das Kopfgeld auf §f" + player.getName() + " §aeingelöst! Belohnung: §f" + entry.amount + "x " + reward.getType().name());
         player.sendMessage("§cDas Kopfgeld auf dich wurde von §f" + killer.getName() + " §ceingelöst!");
 
         // Kopfgeld aus der Datenbank entfernen

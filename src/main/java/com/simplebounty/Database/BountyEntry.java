@@ -1,12 +1,11 @@
-// Neue Datei: BountyEntry.java
 package com.simplebounty.Database;
 
 public class BountyEntry {
-    public final String material;
+    public final String itemStackJson;
     public final int amount;
 
-    public BountyEntry(String material, int amount) {
-        this.material = material;
+    public BountyEntry(String itemStackJson, int amount) {
+        this.itemStackJson = itemStackJson;
         this.amount = amount;
     }
 }

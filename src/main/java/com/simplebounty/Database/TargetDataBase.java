@@ -19,7 +19,7 @@ public class TargetDataBase {
     private final Path filePath;
     private final Gson gson;
     private final ReadWriteLock lock;
-    private Map<String, BountyEntry> targetToPrize; // ← BountyEntry statt Material
+    private Map<String, BountyEntry> targetToPrize;
 
     // ── Konstruktor ──────────────────────────────────────────────────────────────
 
@@ -40,7 +40,6 @@ public class TargetDataBase {
 
     // ── Laden & Speichern ────────────────────────────────────────────────────────
 
-    // Gson kann BountyEntry direkt laden da es ein einfaches POJO ist
     public void load() {
         lock.writeLock().lock();
         try {
@@ -61,7 +60,6 @@ public class TargetDataBase {
         }
     }
 
-    // Gson serialisiert BountyEntry direkt als JSON-Objekt
     private void saveInternal() {
         try (BufferedWriter writer = Files.newBufferedWriter(filePath)) {
             gson.toJson(targetToPrize, writer);
@@ -81,18 +79,16 @@ public class TargetDataBase {
 
     // ── CRUD-Methoden ────────────────────────────────────────────────────────────
 
-    // Kopfgeld setzen – Material + Menge
-    public void setBounty(String targetName, String material, int amount) {
+    public void setBounty(String targetName, String itemStackJson, int amount) {
         lock.writeLock().lock();
         try {
-            targetToPrize.put(targetName, new BountyEntry(material, amount));
+            targetToPrize.put(targetName, new BountyEntry(itemStackJson, amount));
             saveInternal();
         } finally {
             lock.writeLock().unlock();
         }
     }
 
-    // Kopfgeld abrufen – null wenn keins vorhanden
     public BountyEntry getBounty(String targetName) {
         lock.readLock().lock();
         try {
@@ -102,7 +98,6 @@ public class TargetDataBase {
         }
     }
 
-    // Kopfgeld entfernen – gibt true zurück wenn es existiert hat
     public boolean removeBounty(String targetName) {
         lock.writeLock().lock();
         try {
@@ -114,7 +109,6 @@ public class TargetDataBase {
         }
     }
 
-    // Prüft ob ein Spieler ein Kopfgeld hat
     public boolean hasBounty(String targetName) {
         lock.readLock().lock();
         try {
@@ -124,7 +118,6 @@ public class TargetDataBase {
         }
     }
 
-    // Gibt eine Kopie aller Kopfgelder zurück – für /bounty list
     public Map<String, BountyEntry> getAllBounties() {
         lock.readLock().lock();
         try {
